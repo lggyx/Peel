@@ -7,7 +7,7 @@ const app = express();
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   credentials: false,
 }));
 
@@ -183,6 +183,41 @@ app.post('/analyze', async (req, res) => {
   }
 });
 
+app.post('/chat', async (req, res) => {
+  const { messages, temperature = 0.7, max_tokens = 2048 } = req.body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages array is required' });
+  }
+  try {
+    const response = await fetch(STEPFUN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${STEPFUN_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'step-3.6',
+        messages,
+        temperature,
+        max_tokens,
+        stream: false,
+      }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return res.status(response.status).json({
+        error: 'StepFun API error',
+        details: errorData
+      });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Chat Error]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -198,7 +233,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`ReelMind Proxy running`);
   console.log(`Port: ${PORT}`);
   console.log(`Bind: 0.0.0.0 (all interfaces)`);
-  console.log(`Health: http://localhost:${PORT}/health`);
-  console.log(`Analyze: POST http://localhost:${PORT}/analyze`);
+  console.log(`Health:   GET  http://localhost:${PORT}/health`);
+  console.log(`Analyze:  POST http://localhost:${PORT}/analyze`);
+  console.log(`Chat:     POST http://localhost:${PORT}/chat`);
   console.log(`=================================`);
 });

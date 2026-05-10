@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getDB, initDB } from '../db/init'
 import { generateUUID } from '../utils/uuid'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000'
+const API_BASE = 'https://bazooka-blandness-parted.ngrok-free.dev'
 
 interface Video {
   id: string
@@ -48,7 +48,10 @@ export default function Library() {
     try {
       const res = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '1',
+        },
         body: JSON.stringify({ videoUrl: urlInput.trim() }),
       })
 

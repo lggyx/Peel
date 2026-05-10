@@ -15,7 +15,7 @@ function resolveVideoUrl(raw: string): string {
   return raw
 }
 
-const STEPFUN_API_KEY = import.meta.env.VITE_STEPFUN_API_KEY
+const API_BASE = 'https://bazooka-blandness-parted.ngrok-free.dev'
 
 type TabKey = 'chat' | 'storyline'
 
@@ -33,6 +33,44 @@ export default function Player() {
   const [loading, setLoading] = useState(false)
   const [videoError, setVideoError] = useState<string>('')
   const [videoReady, setVideoReady] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showControls, setShowControls] = useState(true)
+  const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // 点击视频区域：切换播放/暂停，并显示控制按钮
+  function handleVideoTap() {
+    const v = videoRef.current
+    if (!v || !videoReady) return
+    if (v.paused) {
+      v.play().catch(() => {})
+    } else {
+      v.pause()
+    }
+    showControlsTemporarily()
+  }
+
+  // 显示控制按钮，3 秒后自动隐藏
+  function showControlsTemporarily() {
+    setShowControls(true)
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current)
+    controlsTimerRef.current = setTimeout(() => {
+      setShowControls(false)
+    }, 3000)
+  }
+
+  // 监听播放/暂停事件
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    const onPlay = () => setIsPlaying(true)
+    const onPause = () => setIsPlaying(false)
+    v.addEventListener('play', onPlay)
+    v.addEventListener('pause', onPause)
+    return () => {
+      v.removeEventListener('play', onPlay)
+      v.removeEventListener('pause', onPause)
+    }
+  }, [video?.url])
 
   // 注入/重置视频主题 CSS 变量
   useVideoTheme(analysis?.theme ?? null)
@@ -61,6 +99,12 @@ export default function Player() {
     return () => {
       ScreenOrientation.unlock().catch(() => {})
       showStatusBar()
+      // 离开页面时彻底释放视频资源，防止返回时恢复全屏播放
+      if (videoRef.current) {
+        videoRef.current.pause()
+        videoRef.current.removeAttribute('src')
+        videoRef.current.load()
+      }
     }
   }, [loadData])
 
@@ -80,22 +124,12 @@ export default function Player() {
     }
   }
 
-  // 当 video.url 变化时，尝试加载
+  // 当 video.url 变化时，加载视频但不自动播放
   useEffect(() => {
     if (!video?.url || !videoRef.current) return
     setVideoError('')
     setVideoReady(false)
-    const v = videoRef.current
-    v.load()
-    const tryPlay = () => {
-      v.play().catch(err => {
-        console.log('[Video] Autoplay blocked or error:', err)
-      })
-    }
-    v.addEventListener('canplay', tryPlay, { once: true })
-    return () => {
-      v.removeEventListener('canplay', tryPlay)
-    }
+    videoRef.current.load()
   }, [video?.url])
 
   async function lockLandscape() {
@@ -142,14 +176,13 @@ export default function Player() {
     try {
       const context = buildContext()
 
-      const res = await fetch('https://api.stepfun.com/v1/chat/completions', {
+      const res = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${STEPFUN_API_KEY}`,
+          'ngrok-skip-browser-warning': '1',
         },
         body: JSON.stringify({
-          model: 'step-3.6',
           messages: [
             { role: 'system', content: `你是一位资深影视解读助手。用户正在观看一个视频，以下是该视频的分析信息，请基于这些信息准确、简洁地回答用户的问题：\n\n${context}` },
             { role: 'user', content: userContent },
@@ -194,9 +227,9 @@ export default function Player() {
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-contain"
-        controls
         playsInline
         preload="metadata"
+        onClick={handleVideoTap}
         onError={(e) => {
           const mediaError = (e.target as HTMLVideoElement).error
           let msg = '未知错误'
@@ -216,6 +249,10 @@ export default function Player() {
           console.log('[Video] Can play, ready')
           setVideoReady(true)
           setVideoError('')
+          // 首次进入自动播放，返回后不恢复播放
+          if (videoRef.current) {
+            videoRef.current.play().catch(() => {})
+          }
         }}
       >
         <source src={resolveVideoUrl(video.url)} type="video/mp4" />
@@ -253,15 +290,34 @@ export default function Player() {
         </div>
       )}
 
+      {/* 自定义播放控制层（永不触发系统全屏） */}
+      {videoReady && showControls && !videoError && (
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center"
+          onClick={handleVideoTap}
+        >
+          {/* 播放/暂停大按钮 */}
+          <button
+            className="w-20 h-20 rounded-full flex items-center justify-center text-4xl text-white/90 bg-black/40 backdrop-blur active:scale-90 transition-transform"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleVideoTap()
+            }}
+          >
+            {isPlaying ? '⏸' : '▶'}
+          </button>
+        </div>
+      )}
+
       <button
-        className="absolute top-4 left-4 z-10 text-white bg-black/50 backdrop-blur px-3 py-2 rounded-lg text-sm flex items-center gap-1 active:bg-black/70"
+        className="absolute top-4 left-4 z-30 text-white bg-black/50 backdrop-blur px-3 py-2 rounded-lg text-sm flex items-center gap-1 active:bg-black/70"
         onClick={() => navigate('/')}
       >
         ← 返回
       </button>
 
       {analysis && (
-        <div className="absolute top-4 right-4 z-10 rounded-lg px-3 py-2 text-xs text-white max-w-[180px]"
+        <div className="absolute top-4 right-4 z-30 rounded-lg px-3 py-2 text-xs text-white max-w-[180px]"
           style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
           <p className="font-medium truncate">{video.title}</p>
           <p className="mt-0.5" style={{ color: 'var(--theme-textMuted, #9CA3AF)' }}>
@@ -272,7 +328,7 @@ export default function Player() {
       )}
 
       <button
-        className="absolute bottom-8 right-4 z-10 w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-lg active:scale-95 transition-transform"
+        className="absolute bottom-8 right-4 z-30 w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-lg active:scale-95 transition-transform"
         style={{
           backgroundColor: 'var(--theme-primary, #2563EB)',
           boxShadow: `0 10px 25px -5px ${analysis?.theme?.primary || '#2563EB'}4D`,
