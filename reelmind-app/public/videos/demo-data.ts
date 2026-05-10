@@ -1,27 +1,14 @@
-import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite'
+/**
+ * 《乾隆盛世》演示视频预置分析数据
+ * 视频文件应放置于：reelmind-app/public/videos/乾隆盛世.mp4
+ * 打包后会自动复制到安卓 assets/public/videos/ 目录
+ */
 
-const sqlite = new SQLiteConnection(CapacitorSQLite)
-let dbInstance: any = null
+export const DEMO_VIDEO_ID = 'demo-qianlong-shengshi'
 
-function getPlatform(): 'web' | 'native' {
-  const platform = (window as any).Capacitor?.getPlatform?.() || 'web'
-  return platform === 'web' ? 'web' : 'native'
-}
+export const DEMO_VIDEO_URL = './videos/乾隆盛世.mp4'
 
-// ---------- 预置演示数据 ----------
-const DEMO_VIDEO_ID = 'demo-qianlong-shengshi'
-const DEMO_TITLE = '乾隆盛世'
-
-function getDemoVideoUrl(): string {
-  if (getPlatform() === 'native') {
-    // Android 端：通过 file:///android_asset/ 访问内置资源
-    return 'file:///android_asset/public/videos/乾隆盛世.mp4'
-  }
-  // Web 开发端：Vite dev server 从 public 目录提供
-  return './videos/乾隆盛世.mp4'
-}
-
-const DEMO_ANALYSIS_JSON = JSON.stringify({
+export const DEMO_ANALYSIS = {
   characters: [
     { name: '乾隆皇帝', description: '清朝第六位皇帝，在位期间文治武功达到顶峰，晚年好大喜功，六下江南' },
     { name: '和珅', description: '乾隆朝权臣，官至文华殿大学士，历史上著名的大贪官，精通满汉蒙藏四种语言' },
@@ -87,82 +74,4 @@ const DEMO_ANALYSIS_JSON = JSON.stringify({
     tagText: '#C9A84C',
     mood: '宫廷典雅',
   },
-})
-
-async function seedDemoVideo(db: any) {
-  try {
-    const res = await db.query('SELECT id FROM videos WHERE id = ?', [DEMO_VIDEO_ID])
-    if (res.values && res.values.length > 0) {
-      console.log('[DB] Demo video already exists, skip seeding')
-      return
-    }
-
-    await db.run(
-      'INSERT INTO videos (id, title, url, status, analysis_json) VALUES (?, ?, ?, ?, ?)',
-      [DEMO_VIDEO_ID, DEMO_TITLE, getDemoVideoUrl(), 'completed', DEMO_ANALYSIS_JSON]
-    )
-    console.log('[DB] Demo video seeded successfully')
-  } catch (err) {
-    console.error('[DB] Seed demo video failed:', err)
-  }
-}
-// ----------------------------------
-
-export async function initDB() {
-  if (dbInstance) return dbInstance
-
-  const platform = getPlatform()
-  console.log(`[DB] Platform: ${platform}`)
-
-  try {
-    if (platform === 'web') {
-      const jeep = document.querySelector('jeep-sqlite')
-      if (!jeep) {
-        console.warn('[DB] jeep-sqlite not found in DOM')
-        throw new Error('jeep-sqlite element not found')
-      }
-      await customElements.whenDefined('jeep-sqlite')
-      await new Promise(resolve => setTimeout(resolve, 100))
-      await sqlite.initWebStore()
-    }
-
-    const db = await sqlite.createConnection('reelmind', false, 'no-encryption', 1, false)
-    await db.open()
-
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS videos (
-        id TEXT PRIMARY KEY,
-        title TEXT,
-        url TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        analysis_json TEXT,
-        created_at INTEGER DEFAULT (strftime('%s','now'))
-      );
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        video_id TEXT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at INTEGER DEFAULT (strftime('%s','now'))
-      );
-    `)
-
-    // 自动插入预置演示视频
-    await seedDemoVideo(db)
-
-    dbInstance = db
-    console.log('[DB] SQLite initialized successfully')
-    return db
-
-  } catch (err) {
-    console.error('[DB] SQLite init failed:', err)
-    throw err
-  }
-}
-
-export async function getDB() {
-  if (!dbInstance) {
-    await initDB()
-  }
-  return dbInstance
 }
