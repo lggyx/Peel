@@ -1,6 +1,6 @@
 {
   "appId": "com.reelmind.app",
-  "appName": "ReelMind",
+  "appName": "Peel",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { ScreenOrientation } from '@capacitor/screen-orientation'
+import { StatusBar } from '@capacitor/status-bar'
 import { getDB } from '../db/init'
 import { parseAnalysis, type VideoAnalysis } from '../types/analysis'
 import { useVideoTheme } from '../hooks/useVideoTheme'
@@ -56,8 +57,28 @@ export default function Player() {
   useEffect(() => {
     loadData()
     lockLandscape()
-    return () => { ScreenOrientation.unlock().catch(() => {}) }
+    hideStatusBar()
+    return () => {
+      ScreenOrientation.unlock().catch(() => {})
+      showStatusBar()
+    }
   }, [loadData])
+
+  async function hideStatusBar() {
+    try {
+      await StatusBar.hide()
+    } catch (err) {
+      console.log('Hide status bar failed:', err)
+    }
+  }
+
+  async function showStatusBar() {
+    try {
+      await StatusBar.show()
+    } catch (err) {
+      console.log('Show status bar failed:', err)
+    }
+  }
 
   // 当 video.url 变化时，尝试加载
   useEffect(() => {
