@@ -1,8 +1,53 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
+
+// 确保下载目录存在
+const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
+if (!fs.existsSync(DOWNLOAD_DIR)) {
+  fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+}
+
+// 流式视频播放接口（绕过 ngrok 浏览器警告）
+app.get('/stream/:fileName', (req, res) => {
+  const fileName = req.params.fileName;
+  const filePath = path.join(DOWNLOAD_DIR, fileName);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Video not found' });
+  }
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunksize = end - start + 1;
+    const file = fs.createReadStream(filePath, { start, end });
+    const head = {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': 'video/mp4',
+    };
+    res.writeHead(206, head);
+    file.pipe(res);
+  } else {
+    const head = {
+      'Content-Length': fileSize,
+      'Content-Type': 'video/mp4',
+    };
+    res.writeHead(200, head);
+    fs.createReadStream(filePath).pipe(res);
+  }
+});
 
 app.use(cors({
   origin: '*',
@@ -218,6 +263,54 @@ app.post('/chat', async (req, res) => {
   }
 });
 
+app.post('/download', async (req, res) => {
+  const { videoUrl } = req.body;
+  if (!videoUrl) {
+    return res.status(400).json({ error: 'videoUrl is required' });
+  }
+  try {
+    new URL(videoUrl);
+  } catch {
+    return res.status(400).json({ error: 'invalid videoUrl format' });
+  }
+
+  console.log(`[Download] Proxying: ${videoUrl.substring(0, 60)}...`);
+
+  try {
+    const response = await fetch(videoUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      return res.status(502).json({ error: `Source returned ${response.status}` });
+    }
+
+    const contentType = response.headers.get('content-type') || 'video/mp4';
+    const contentLength = response.headers.get('content-length');
+
+    res.setHeader('Content-Type', contentType);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+
+    // 直接流式传输给客户端
+    const reader = response.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(Buffer.from(value));
+    }
+    res.end();
+
+    console.log(`[Download] Stream finished`);
+  } catch (err) {
+    console.error('[Download Error]', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -236,5 +329,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Health:   GET  http://localhost:${PORT}/health`);
   console.log(`Analyze:  POST http://localhost:${PORT}/analyze`);
   console.log(`Chat:     POST http://localhost:${PORT}/chat`);
+  console.log(`Download: POST http://localhost:${PORT}/download`);
+  console.log(`Stream:   GET  http://localhost:${PORT}/stream/<file>`);
   console.log(`=================================`);
 });

@@ -1,9 +1,55 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Filesystem, Directory } from '@capacitor/filesystem'
 import { getDB, initDB } from '../db/init'
 import { generateUUID } from '../utils/uuid'
 
 const API_BASE = 'https://bazooka-blandness-parted.ngrok-free.dev'
+
+/** 请求后端下载视频，保存到本地文件系统，返回本地 file:// 路径 */
+async function downloadVideoViaProxy(url: string, id: string): Promise<string | null> {
+  const res = await fetch(`${API_BASE}/download`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': '1',
+    },
+    body: JSON.stringify({ videoUrl: url }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'unknown' }))
+    console.error('[Download] Proxy failed:', err)
+    return null
+  }
+
+  // 读取二进制并转为 base64
+  const blob = await res.blob()
+  const arrayBuffer = await blob.arrayBuffer()
+  const bytes = new Uint8Array(arrayBuffer)
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  const base64 = btoa(binary)
+
+  // 写入本地文件系统
+  const fileName = `video_${id}.mp4`
+  await Filesystem.writeFile({
+    path: fileName,
+    data: base64,
+    directory: Directory.Data,
+    recursive: true,
+  })
+
+  // 获取 file:// URI
+  const uriResult = await Filesystem.getUri({
+    path: fileName,
+    directory: Directory.Data,
+  })
+
+  console.log('[Download] Saved locally:', uriResult.uri)
+  return uriResult.uri
+}
 
 interface Video {
   id: string
@@ -46,7 +92,8 @@ export default function Library() {
     setAnalyzing(true)
 
     try {
-      const res = await fetch(`${API_BASE}/analyze`, {
+      // 并发执行：AI 分析 + 视频下载到服务端
+      const analyzePromise = fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -54,6 +101,14 @@ export default function Library() {
         },
         body: JSON.stringify({ videoUrl: urlInput.trim() }),
       })
+
+      const downloadPromise = downloadVideoViaProxy(urlInput.trim(), generateUUID())
+        .catch(err => {
+          console.error('[Download] Failed:', err)
+          return null
+        })
+
+      const [res, proxyUrl] = await Promise.all([analyzePromise, downloadPromise])
 
       if (!res.ok) {
         const err = await res.json()
@@ -70,10 +125,13 @@ export default function Library() {
         ? `${analysis.characters[0].name}的视频`
         : '未命名视频'
 
+      // 优先使用服务端下载后的 URL，失败则回退到原始 URL
+      const finalUrl = proxyUrl || urlInput.trim()
+
       const db = await getDB()
       await db.run(
         'INSERT INTO videos (id, title, url, status, analysis_json) VALUES (?, ?, ?, ?, ?)',
-        [id, title, urlInput.trim(), 'completed', JSON.stringify(analysis)]
+        [id, title, finalUrl, 'completed', JSON.stringify(analysis)]
       )
 
       setShowAdd(false)
