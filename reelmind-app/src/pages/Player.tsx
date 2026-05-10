@@ -1,10 +1,18 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { ScreenOrientation } from '@capacitor/screen-orientation'
 import { getDB } from '../db/init'
 import { parseAnalysis, type VideoAnalysis } from '../types/analysis'
 import { useVideoTheme } from '../hooks/useVideoTheme'
 import StorylinePanel from '../components/StorylinePanel'
+
+function resolveVideoUrl(raw: string): string {
+  if (raw.startsWith('file://')) {
+    return Capacitor.convertFileSrc(raw)
+  }
+  return raw
+}
 
 const STEPFUN_API_KEY = import.meta.env.VITE_STEPFUN_API_KEY
 
@@ -13,6 +21,7 @@ type TabKey = 'chat' | 'storyline'
 export default function Player() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   const [video, setVideo] = useState<any>(null)
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null)
@@ -21,6 +30,8 @@ export default function Player() {
   const [showPanel, setShowPanel] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('chat')
   const [loading, setLoading] = useState(false)
+  const [videoError, setVideoError] = useState<string>('')
+  const [videoReady, setVideoReady] = useState(false)
 
   // 注入/重置视频主题 CSS 变量
   useVideoTheme(analysis?.theme ?? null)
@@ -47,6 +58,24 @@ export default function Player() {
     lockLandscape()
     return () => { ScreenOrientation.unlock().catch(() => {}) }
   }, [loadData])
+
+  // 当 video.url 变化时，尝试加载
+  useEffect(() => {
+    if (!video?.url || !videoRef.current) return
+    setVideoError('')
+    setVideoReady(false)
+    const v = videoRef.current
+    v.load()
+    const tryPlay = () => {
+      v.play().catch(err => {
+        console.log('[Video] Autoplay blocked or error:', err)
+      })
+    }
+    v.addEventListener('canplay', tryPlay, { once: true })
+    return () => {
+      v.removeEventListener('canplay', tryPlay)
+    }
+  }, [video?.url])
 
   async function lockLandscape() {
     try {
@@ -142,12 +171,66 @@ export default function Player() {
   return (
     <div className="relative w-screen h-screen bg-black overflow-hidden">
       <video
-        src={video.url}
+        ref={videoRef}
         className="absolute inset-0 w-full h-full object-contain"
         controls
         playsInline
         preload="metadata"
-      />
+        onError={(e) => {
+          const mediaError = (e.target as HTMLVideoElement).error
+          let msg = '未知错误'
+          if (mediaError) {
+            switch (mediaError.code) {
+              case 1: msg = '视频加载被中断'; break
+              case 2: msg = '网络错误，无法下载视频'; break
+              case 3: msg = '视频解码失败，格式不支持'; break
+              case 4: msg = '视频地址无效或无法访问'; break
+            }
+          }
+          console.error('[Video] Playback error code:', mediaError?.code, 'message:', msg)
+          setVideoError(msg)
+          setVideoReady(false)
+        }}
+        onCanPlay={() => {
+          console.log('[Video] Can play, ready')
+          setVideoReady(true)
+          setVideoError('')
+        }}
+      >
+        <source src={resolveVideoUrl(video.url)} type="video/mp4" />
+        <p className="text-white text-center mt-20 text-sm">
+          您的浏览器不支持视频播放
+        </p>
+      </video>
+
+      {!!video.url && !videoReady && !videoError && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80">
+          <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+          <p className="mt-3 text-sm text-white/70">视频加载中...</p>
+        </div>
+      )}
+
+      {videoError && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80">
+          <p className="text-4xl mb-3">⚠️</p>
+          <p className="text-sm text-red-400 px-6 text-center">{videoError}</p>
+          <p className="text-xs text-gray-500 mt-2 px-6 text-center max-w-[80%] break-all">
+            {video.url}
+          </p>
+          <button
+            className="mt-4 px-4 py-2 rounded-lg text-sm text-white active:opacity-80"
+            style={{ backgroundColor: 'var(--theme-primary, #2563EB)' }}
+            onClick={() => {
+              setVideoError('')
+              if (videoRef.current) {
+                videoRef.current.load()
+              }
+            }}
+          >
+            重试
+          </button>
+        </div>
+      )}
 
       <button
         className="absolute top-4 left-4 z-10 text-white bg-black/50 backdrop-blur px-3 py-2 rounded-lg text-sm flex items-center gap-1 active:bg-black/70"

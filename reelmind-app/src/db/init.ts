@@ -9,19 +9,13 @@ function getPlatform(): 'web' | 'native' {
 }
 
 // ---------- 预置演示数据 ----------
-const DEMO_VIDEO_ID = 'demo-qianlong-shengshi'
-const DEMO_TITLE = '乾隆盛世'
 
-function getDemoVideoUrl(): string {
-  if (getPlatform() === 'native') {
-    // Android 端：通过 file:///android_asset/ 访问内置资源
-    return 'file:///android_asset/public/videos/乾隆盛世.mp4'
-  }
-  // Web 开发端：Vite dev server 从 public 目录提供
-  return './videos/乾隆盛世.mp4'
-}
+// 演示视频 1：乾隆盛世
+const DEMO_1_ID = 'demo-qianlong-shengshi'
+const DEMO_1_TITLE = '乾隆盛世'
+const DEMO_1_URL = './videos/demo_video.mp4'
 
-const DEMO_ANALYSIS_JSON = JSON.stringify({
+const DEMO_1_ANALYSIS = JSON.stringify({
   characters: [
     { name: '乾隆皇帝', description: '清朝第六位皇帝，在位期间文治武功达到顶峰，晚年好大喜功，六下江南' },
     { name: '和珅', description: '乾隆朝权臣，官至文华殿大学士，历史上著名的大贪官，精通满汉蒙藏四种语言' },
@@ -89,22 +83,107 @@ const DEMO_ANALYSIS_JSON = JSON.stringify({
   },
 })
 
-async function seedDemoVideo(db: any) {
+// 演示视频 2：陈涉世家
+const DEMO_2_ID = 'demo-chen-she-shi-jia'
+const DEMO_2_TITLE = '陈涉世家'
+const DEMO_2_URL = './videos/chen_she_shi_jia.mp4'
+
+const DEMO_2_ANALYSIS = JSON.stringify({
+  characters: [
+    { name: '陈胜', description: '雇农出身，胸怀大志，发动大泽乡起义，建立张楚政权，喊出"王侯将相宁有种乎"的千古名言' },
+    { name: '吴广', description: '陈胜挚友，一同被征发戍边，大泽乡起义的核心领袖之一，后被部将所杀' },
+    { name: '秦二世胡亥', description: '秦始皇幼子，靠赵高篡改遗诏即位，残暴昏庸，横征暴敛，加速秦朝灭亡' },
+    { name: '扶苏', description: '秦始皇长子，仁厚贤能，因劝谏始皇被派往上郡监蒙恬军，后被逼自杀' },
+  ],
+  plotSummary: '本片以《史记·陈涉世家》为蓝本，再现秦末农民大起义的历史画卷。陈胜、吴广在大泽乡揭竿而起，喊出"王侯将相宁有种乎"的千古名言，点燃了推翻秦朝暴政的燎原之火。影片从陈胜少时佣耕立下鸿鹄之志，到大泽乡遇雨起义，再到建立张楚政权、最终兵败身亡，完整呈现了中国历史上第一次大规模农民起义的全过程。',
+  timeline: [
+    { time: '00:01:00', event: '陈胜少时佣耕，对同伴说"燕雀安知鸿鹄之志哉"' },
+    { time: '00:03:30', event: '大泽乡遇大雨，戍卒无法按期抵达渔阳，按秦律当斩' },
+    { time: '00:05:45', event: '陈胜吴广篝火狐鸣、鱼腹藏书，发动大泽乡起义' },
+    { time: '00:08:20', event: '起义军攻占陈县，建立张楚政权，陈胜称王' },
+    { time: '00:11:00', event: '秦将章邯率骊山刑徒反扑，起义军节节败退' },
+    { time: '00:13:30', event: '陈胜被车夫庄贾杀害，起义最终失败，但星火已燎原' },
+  ],
+  relationships: [
+    { from: '陈胜', to: '吴广', relation: '生死与共的战友' },
+    { from: '陈胜', to: '秦二世胡亥', relation: '反抗与暴政的对立' },
+    { from: '陈胜', to: '扶苏', relation: '借其名号召天下' },
+    { from: '吴广', to: '陈胜', relation: '忠心辅佐' },
+  ],
+  storyline: [
+    {
+      phase: '第一幕：鸿鹄之志',
+      summary: '影片开篇展现陈胜少年时代佣耕于田垄之间的场景。面对同伴的嘲笑，他发出"燕雀安知鸿鹄之志哉"的感慨。这一段落通过质朴的农家生活和陈胜不甘平庸的眼神，奠定了全片的史诗基调。',
+      highlights: ['田间佣耕劳作', '"燕雀安知鸿鹄之志"', '同伴嘲笑与不屑'],
+      mood: '隐忍蓄力',
+    },
+    {
+      phase: '第二幕：大泽惊雷',
+      summary: '秦二世元年七月，陈胜吴广等九百戍卒被征发渔阳，途中在大泽乡遇大雨阻断道路。按照严苛的秦法，误期当斩。在生死存亡之际，陈胜吴广决定揭竿而起，用篝火狐鸣和鱼腹丹书制造舆论，点燃了反秦的烽火。',
+      highlights: ['大泽乡暴雨阻路', '篝火狐鸣造舆论', '揭竿而起反暴秦'],
+      mood: '激昂悲壮',
+    },
+    {
+      phase: '第三幕：燎原之火',
+      summary: '大泽乡起义如星星之火迅速燎原。陈胜率义军势如破竹，攻占蕲县、铚县、酂县、苦县、柘县、谯县等地，所至之处百姓纷纷响应。起义军斩木为兵、揭竿为旗，浩浩荡荡向陈县进发，反秦浪潮席卷关东大地。',
+      highlights: ['斩木为兵揭竿为旗', '百姓纷纷响应', '义军势如破竹'],
+      mood: '热血沸腾',
+    },
+    {
+      phase: '第四幕：张楚立国',
+      summary: '起义军攻占陈县后，当地父老豪杰劝陈胜称王。陈胜立国号为"张楚"，意为"张大楚国"。这是中国历史上第一个由农民建立的政权。影片通过盛大的立国大典和六国旧贵族纷纷来投的场面，展现了起义事业的巅峰时刻。',
+      highlights: ['陈县父老劝进', '张楚政权建立', '六国旧贵族来投'],
+      mood: '辉煌壮阔',
+    },
+    {
+      phase: '第五幕：英雄末路',
+      summary: '秦将章邯率骊山刑徒和奴产子组成的军队反扑，起义军内部矛盾也逐渐暴露。吴广被部将田臧杀害，陈胜在撤退途中被自己的车夫庄贾刺杀。起义虽然失败，但"天下苦秦久矣"的怒火已被点燃，项羽、刘邦随即接过了反秦的大旗。',
+      highlights: ['章邯率刑徒反扑', '吴广被害', '陈胜遇刺星火不灭'],
+      mood: '悲壮苍劲',
+    },
+  ],
+  theme: {
+    primary: '#8B2500',
+    secondary: '#1A0F0A',
+    accent: '#C4953A',
+    surface: '#1E1510',
+    text: '#F0E6D8',
+    textMuted: '#9A8B7A',
+    bubbleUser: '#8B2500',
+    bubbleAi: '#2D2018',
+    tagBg: '#2D2018',
+    tagText: '#C4953A',
+    mood: '史诗悲壮',
+  },
+})
+
+async function seedSingleVideo(
+  db: any,
+  id: string,
+  title: string,
+  url: string,
+  analysis: string
+) {
   try {
-    const res = await db.query('SELECT id FROM videos WHERE id = ?', [DEMO_VIDEO_ID])
+    const res = await db.query('SELECT id FROM videos WHERE id = ?', [id])
     if (res.values && res.values.length > 0) {
-      console.log('[DB] Demo video already exists, skip seeding')
+      console.log(`[DB] Demo video "${title}" already exists, skip seeding`)
       return
     }
 
     await db.run(
       'INSERT INTO videos (id, title, url, status, analysis_json) VALUES (?, ?, ?, ?, ?)',
-      [DEMO_VIDEO_ID, DEMO_TITLE, getDemoVideoUrl(), 'completed', DEMO_ANALYSIS_JSON]
+      [id, title, url, 'completed', analysis]
     )
-    console.log('[DB] Demo video seeded successfully')
+    console.log(`[DB] Demo video "${title}" seeded successfully`)
   } catch (err) {
-    console.error('[DB] Seed demo video failed:', err)
+    console.error(`[DB] Seed demo video "${title}" failed:`, err)
   }
+}
+
+async function seedDemoVideos(db: any) {
+  await seedSingleVideo(db, DEMO_1_ID, DEMO_1_TITLE, DEMO_1_URL, DEMO_1_ANALYSIS)
+  await seedSingleVideo(db, DEMO_2_ID, DEMO_2_TITLE, DEMO_2_URL, DEMO_2_ANALYSIS)
 }
 // ----------------------------------
 
@@ -148,7 +227,7 @@ export async function initDB() {
     `)
 
     // 自动插入预置演示视频
-    await seedDemoVideo(db)
+    await seedDemoVideos(db)
 
     dbInstance = db
     console.log('[DB] SQLite initialized successfully')
