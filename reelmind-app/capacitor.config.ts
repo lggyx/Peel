@@ -9,6 +9,9 @@ const config: CapacitorConfig = {
     cleartext: true,
     hostname: 'localhost',
   },
+  android: {
+    allowMixedContent: true,
+  },
   plugins: {
     CapacitorSQLite: {
       iosDatabaseLocation: 'Library/CapacitorDatabase',

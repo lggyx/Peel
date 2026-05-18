@@ -68,6 +68,14 @@ function isAllowedDownloadType(contentType) {
   );
 }
 
+function formatErrorMessage(err) {
+  const parts = [err?.message || 'request failed'];
+  const cause = err?.cause;
+  if (cause?.code) parts.push(cause.code);
+  if (cause?.message && cause.message !== err?.message) parts.push(cause.message);
+  return parts.join(': ');
+}
+
 const corsOptions = {
   origin: CORS_ORIGIN,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
@@ -213,8 +221,9 @@ app.post('/analyze', async (req, res) => {
     console.log(`[Analyze] Parsed ok, chars: ${analysis.characters?.length || 0}, storyline: ${analysis.storyline?.length || 0}, mood: ${analysis.theme?.mood || 'none'}`);
     res.json({ analysis });
   } catch (err) {
-    console.error('[Analyze Error]', err.message);
-    res.status(500).json({ error: err.message });
+    const message = formatErrorMessage(err);
+    console.error('[Analyze Error]', message);
+    res.status(500).json({ error: message });
   }
 });
 
@@ -305,9 +314,10 @@ app.post('/download', async (req, res) => {
 
     console.log(`[Download] Stream finished`);
   } catch (err) {
-    console.error('[Download Error]', err.message);
+    const message = formatErrorMessage(err);
+    console.error('[Download Error]', message);
     if (!res.headersSent) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: message });
     }
   }
 });
