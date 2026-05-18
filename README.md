@@ -346,6 +346,7 @@ peel/
 │   │   ├── components/     # StorylinePanel.tsx
 │   │   ├── hooks/          # useVideoTheme.ts
 │   │   ├── types/          # analysis.ts
+│   │   ├── config/         # API 配置
 │   │   ├── db/             # init.ts（SQLite + 种子数据）
 │   │   ├── utils/          # uuid.ts
 │   │   └── App.tsx
@@ -354,6 +355,8 @@ peel/
 │   └── package.json
 ├── reelmind-proxy/         # Express 代理后端
 │   ├── index.js            # 代理服务器 + AI Prompt
+│   ├── config.js           # 运行时配置
+│   ├── analysis.js         # AI JSON 提取与标准化
 │   └── package.json
 └── docs/                   # 技术文档
     └── technical-spec.md   # 详细技术说明
@@ -366,7 +369,7 @@ peel/
 ```bash
 cd reelmind-proxy
 cp .env.example .env
-# 编辑 .env，填入 STEPFUN_API_KEY
+# 编辑 .env，填入 STEPFUN_API_KEY；如需真机访问，设置 PUBLIC_BASE_URL 为局域网或公网代理地址
 npm install
 npm start
 ```
@@ -377,6 +380,8 @@ npm start
 
 ```bash
 cd reelmind-app
+cp .env.example .env
+# 编辑 .env，设置 VITE_API_BASE_URL，例如 http://localhost:3000 或 http://<电脑局域网IP>:3000
 npm install
 npm run dev
 ```
@@ -396,7 +401,7 @@ npm run android        # 打开 Android Studio
 
 ## 10. 安全与注意事项
 
-- **API Key 保护**：StepFun API Key 仅存储在代理后端的 `.env` 中，前端通过 `import.meta.env.VITE_API_KEY` 只在浏览器端使用，构建 APK 后前端环境变量不生效，必须配置代理后端
+- **API Key 保护**：StepFun API Key 仅存储在代理后端的 `.env` 中，前端只配置 `VITE_API_BASE_URL` 指向代理服务，不能把 StepFun Key 放进前端代码或 APK
 - **视频路径安全**：禁止在 WebView 中直接使用 `file://` 路径，使用 Capacitor 本地服务器或 `convertFileSrc()`
 - **CORS 与防盗链**：外部 CDN 视频可能被防盗链拦截，推荐使用本地资源或可控的 CDN
 - **数据库清理**：修改演示数据后需卸载 App 或清除应用数据，让 SQLite 重新初始化

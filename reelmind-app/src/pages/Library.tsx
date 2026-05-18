@@ -3,22 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { getDB, initDB } from '../db/init'
 import { generateUUID } from '../utils/uuid'
-
-const API_BASE = 'https://bazooka-blandness-parted.ngrok-free.dev'
+import { API_HEADERS, apiUrl, isHttpUrl, readErrorMessage } from '../config/api'
 
 /** 请求后端下载视频，保存到本地文件系统，返回本地 file:// 路径 */
 async function downloadVideoViaProxy(url: string, id: string): Promise<string | null> {
-  const res = await fetch(`${API_BASE}/download`, {
+  const res = await fetch(apiUrl('/download'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': '1',
+      ...API_HEADERS,
     },
     body: JSON.stringify({ videoUrl: url }),
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'unknown' }))
-    console.error('[Download] Proxy failed:', err)
+    const message = await readErrorMessage(res, `下载失败 (${res.status})`)
+    console.error('[Download] Proxy failed:', message)
     return null
   }
 
@@ -49,6 +48,17 @@ async function downloadVideoViaProxy(url: string, id: string): Promise<string | 
 
   console.log('[Download] Saved locally:', uriResult.uri)
   return uriResult.uri
+}
+
+async function deleteDownloadedVideo(id: string) {
+  try {
+    await Filesystem.deleteFile({
+      path: `video_${id}.mp4`,
+      directory: Directory.Data,
+    })
+  } catch (err) {
+    console.warn('[Download] Cleanup skipped:', err)
+  }
 }
 
 interface Video {
@@ -90,19 +100,32 @@ export default function Library() {
     if (!urlInput.trim() || analyzing) return
 
     setAnalyzing(true)
+    const sourceUrl = urlInput.trim()
+    if (!isHttpUrl(sourceUrl)) {
+      alert('请输入有效的 http 或 https 视频 URL')
+      setAnalyzing(false)
+      return
+    }
+
+    const id = generateUUID()
+    let downloadedUrl: string | null = null
 
     try {
-      // 并发执行：AI 分析 + 视频下载到服务端
-      const analyzePromise = fetch(`${API_BASE}/analyze`, {
+      // 并发执行：AI 分析 + 视频下载到本地文件系统
+      const analyzePromise = fetch(apiUrl('/analyze'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': '1',
+          ...API_HEADERS,
         },
-        body: JSON.stringify({ videoUrl: urlInput.trim() }),
+        body: JSON.stringify({ videoUrl: sourceUrl }),
       })
 
-      const downloadPromise = downloadVideoViaProxy(urlInput.trim(), generateUUID())
+      const downloadPromise = downloadVideoViaProxy(sourceUrl, id)
+        .then((url) => {
+          downloadedUrl = url
+          return url
+        })
         .catch(err => {
           console.error('[Download] Failed:', err)
           return null
@@ -111,22 +134,19 @@ export default function Library() {
       const [res, proxyUrl] = await Promise.all([analyzePromise, downloadPromise])
 
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || '分析失败')
+        throw new Error(await readErrorMessage(res, `分析失败 (${res.status})`))
       }
 
       const data = await res.json()
       const analysis = data.analysis
       if (!analysis || typeof analysis !== 'object') throw new Error('分析结果为空')
 
-      // 使用兼容的 UUID 生成
-      const id = generateUUID()
       const title = analysis.characters?.[0]?.name
         ? `${analysis.characters[0].name}的视频`
         : '未命名视频'
 
-      // 优先使用服务端下载后的 URL，失败则回退到原始 URL
-      const finalUrl = proxyUrl || urlInput.trim()
+      // 优先使用本地下载后的 file:// URL，失败则回退到原始 URL
+      const finalUrl = proxyUrl || sourceUrl
 
       const db = await getDB()
       await db.run(
@@ -139,6 +159,9 @@ export default function Library() {
       loadVideos()
 
     } catch (err: any) {
+      if (downloadedUrl) {
+        await deleteDownloadedVideo(id)
+      }
       alert('分析失败: ' + err.message)
     } finally {
       setAnalyzing(false)

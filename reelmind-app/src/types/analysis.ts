@@ -52,9 +52,9 @@ export interface VideoAnalysis {
   timeline: TimelineEntry[]
   relationships: Relationship[]
   /** 故事发展线 */
-  storyline?: StorylineEntry[]
+  storyline: StorylineEntry[]
   /** AI 生成的主题变量 */
-  theme?: ThemeVariables
+  theme: ThemeVariables
 }
 
 /** 合法 6 位 hex 颜色正则 */
@@ -126,8 +126,8 @@ export function parseAnalysis(raw: string | null | undefined): VideoAnalysis | n
               Array.isArray(s.highlights) &&
               typeof s.mood === 'string'
           )
-        : undefined,
-      theme: parsed.theme ? normalizeTheme(parsed.theme) : undefined,
+        : [],
+      theme: normalizeTheme(parsed.theme),
     }
 
     return analysis

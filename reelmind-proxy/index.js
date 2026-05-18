@@ -3,19 +3,76 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const {
+  CORS_ORIGIN,
+  DOWNLOAD_DIR,
+  PORT,
+  PUBLIC_BASE_URL,
+  STEPFUN_API_KEY,
+  STEPFUN_MODEL,
+  STEPFUN_URL,
+} = require('./config');
+const { extractJSON, normalizeAnalysis } = require('./analysis');
 
 const app = express();
 
+if (!STEPFUN_API_KEY) {
+  console.error('Error: STEPFUN_API_KEY not set in .env');
+  process.exit(1);
+}
+
 // 确保下载目录存在
-const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
 if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 }
 
+function getSafeDownloadPath(fileName) {
+  if (!fileName || fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) {
+    return null;
+  }
+
+  const filePath = path.resolve(DOWNLOAD_DIR, fileName);
+  const root = `${DOWNLOAD_DIR}${path.sep}`;
+  if (!filePath.startsWith(root)) return null;
+  return filePath;
+}
+
+function parseHttpUrl(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function formatUrlForLog(raw) {
+  try {
+    const url = new URL(raw);
+    return `${url.origin}${url.pathname}`.substring(0, 80);
+  } catch {
+    return 'invalid-url';
+  }
+}
+
+const corsOptions = {
+  origin: CORS_ORIGIN,
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  credentials: false,
+};
+
 // 流式视频播放接口（绕过 ngrok 浏览器警告）
-app.get('/stream/:fileName', (req, res) => {
+app.get('/stream/:fileName', cors(corsOptions), (req, res) => {
   const fileName = req.params.fileName;
-  const filePath = path.join(DOWNLOAD_DIR, fileName);
+  const filePath = getSafeDownloadPath(fileName);
+
+  if (!filePath) {
+    return res.status(400).json({ error: 'invalid fileName' });
+  }
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Video not found' });
@@ -29,6 +86,9 @@ app.get('/stream/:fileName', (req, res) => {
     const parts = range.replace(/bytes=/, '').split('-');
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    if (Number.isNaN(start) || Number.isNaN(end) || start < 0 || end >= fileSize || start > end) {
+      return res.status(416).json({ error: 'invalid range' });
+    }
     const chunksize = end - start + 1;
     const file = fs.createReadStream(filePath, { start, end });
     const head = {
@@ -49,97 +109,17 @@ app.get('/stream/:fileName', (req, res) => {
   }
 });
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
-  credentials: false,
-}));
+app.use(cors(corsOptions));
 
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
-const STEPFUN_API_KEY = process.env.STEPFUN_API_KEY;
-const STEPFUN_URL = 'https://api.stepfun.com/v1/chat/completions';
-
-// ---------- JSON 提取与校验工具 ----------
-const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
-
-function extractJSON(content) {
-  if (!content || typeof content !== 'string') return null;
-  // 1. 直接解析
-  try { return JSON.parse(content); } catch {}
-  // 2. Markdown 代码块
-  const codeBlock = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (codeBlock) {
-    try { return JSON.parse(codeBlock[1]); } catch {}
-  }
-  // 3. 正则提取最大 { ... } 块
-  const braceMatch = content.match(/\{[\s\S]*\}/);
-  if (braceMatch) {
-    try { return JSON.parse(braceMatch[0]); } catch {}
-  }
-  return null;
-}
-
-const DEFAULT_THEME = {
-  primary: '#2563EB', secondary: '#1F2937', accent: '#3B82F6',
-  surface: '#111827', text: '#F3F4F6', textMuted: '#9CA3AF',
-  bubbleUser: '#2563EB', bubbleAi: '#374151',
-  tagBg: '#374151', tagText: '#D1D5DB', mood: '默认'
-};
-
-function normalizeAnalysis(raw) {
-  const analysis = {
-    characters: Array.isArray(raw?.characters) ? raw.characters : [],
-    plotSummary: typeof raw?.plotSummary === 'string' ? raw.plotSummary : '',
-    timeline: Array.isArray(raw?.timeline) ? raw.timeline : [],
-    relationships: Array.isArray(raw?.relationships) ? raw.relationships : [],
-    storyline: undefined,
-    theme: undefined,
-  };
-
-  if (Array.isArray(raw?.storyline)) {
-    analysis.storyline = raw.storyline.filter(s =>
-      s && typeof s.phase === 'string' && typeof s.summary === 'string' &&
-      Array.isArray(s.highlights) && typeof s.mood === 'string'
-    );
-  }
-
-  if (raw?.theme && typeof raw.theme === 'object') {
-    const t = raw.theme;
-    const theme = {};
-    for (const k of Object.keys(DEFAULT_THEME)) {
-      const v = t[k];
-      if (k === 'mood') {
-        theme[k] = typeof v === 'string' && v.trim() ? v.trim() : DEFAULT_THEME[k];
-      } else {
-        theme[k] = typeof v === 'string' && HEX_RE.test(v.trim()) ? v.trim() : DEFAULT_THEME[k];
-      }
-    }
-    analysis.theme = theme;
-  }
-
-  return analysis;
-}
-// ----------------------------------------
-
-if (!STEPFUN_API_KEY) {
-  console.error('Error: STEPFUN_API_KEY not set in .env');
-  process.exit(1);
-}
-
 app.post('/analyze', async (req, res) => {
-  const { videoUrl } = req.body;
+  const videoUrl = parseHttpUrl(req.body?.videoUrl);
   if (!videoUrl) {
-    return res.status(400).json({ error: 'videoUrl is required' });
+    return res.status(400).json({ error: 'valid http/https videoUrl is required' });
   }
-  try {
-    new URL(videoUrl);
-  } catch {
-    return res.status(400).json({ error: 'invalid videoUrl format' });
-  }
-  console.log(`[Analyze] URL: ${videoUrl.substring(0, 60)}...`);
+  console.log(`[Analyze] URL: ${formatUrlForLog(videoUrl)}...`);
   try {
     const response = await fetch(STEPFUN_URL, {
       method: 'POST',
@@ -148,7 +128,7 @@ app.post('/analyze', async (req, res) => {
         'Authorization': `Bearer ${STEPFUN_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'step-3.6',
+        model: STEPFUN_MODEL,
         messages: [
           {
             role: 'system',
@@ -241,7 +221,7 @@ app.post('/chat', async (req, res) => {
         'Authorization': `Bearer ${STEPFUN_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'step-3.6',
+        model: STEPFUN_MODEL,
         messages,
         temperature,
         max_tokens,
@@ -264,17 +244,12 @@ app.post('/chat', async (req, res) => {
 });
 
 app.post('/download', async (req, res) => {
-  const { videoUrl } = req.body;
+  const videoUrl = parseHttpUrl(req.body?.videoUrl);
   if (!videoUrl) {
-    return res.status(400).json({ error: 'videoUrl is required' });
-  }
-  try {
-    new URL(videoUrl);
-  } catch {
-    return res.status(400).json({ error: 'invalid videoUrl format' });
+    return res.status(400).json({ error: 'valid http/https videoUrl is required' });
   }
 
-  console.log(`[Download] Proxying: ${videoUrl.substring(0, 60)}...`);
+  console.log(`[Download] Proxying: ${formatUrlForLog(videoUrl)}...`);
 
   try {
     const response = await fetch(videoUrl, {
@@ -320,11 +295,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`=================================`);
   console.log(`ReelMind Proxy running`);
   console.log(`Port: ${PORT}`);
+  console.log(`Public Base URL: ${PUBLIC_BASE_URL}`);
   console.log(`Bind: 0.0.0.0 (all interfaces)`);
   console.log(`Health:   GET  http://localhost:${PORT}/health`);
   console.log(`Analyze:  POST http://localhost:${PORT}/analyze`);

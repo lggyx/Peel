@@ -7,15 +7,16 @@ import { getDB } from '../db/init'
 import { parseAnalysis, type VideoAnalysis } from '../types/analysis'
 import { useVideoTheme } from '../hooks/useVideoTheme'
 import StorylinePanel from '../components/StorylinePanel'
+import { API_HEADERS, apiUrl, readErrorMessage } from '../config/api'
 
 function resolveVideoUrl(raw: string): string {
-  if (raw.startsWith('file://')) {
-    return Capacitor.convertFileSrc(raw)
+  if (!raw) return ''
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('file://')) {
+    return Capacitor.convertFileSrc(trimmed)
   }
-  return raw
+  return trimmed
 }
-
-const API_BASE = 'https://bazooka-blandness-parted.ngrok-free.dev'
 
 type TabKey = 'chat' | 'storyline'
 
@@ -176,11 +177,11 @@ export default function Player() {
     try {
       const context = buildContext()
 
-      const res = await fetch(`${API_BASE}/chat`, {
+      const res = await fetch(apiUrl('/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': '1',
+          ...API_HEADERS,
         },
         body: JSON.stringify({
           messages: [
@@ -192,22 +193,29 @@ export default function Player() {
         }),
       })
 
-      const data = await res.json()
-      const aiContent = data.choices?.[0]?.message?.content || '抱歉，我无法回答。'
+      if (!res.ok) {
+        throw new Error(await readErrorMessage(res, `问答失败 (${res.status})`))
+      }
 
-      const aiMsg = { role: 'assistant', content: aiContent }
+      const data = await res.json()
+      const aiContent = data.choices?.[0]?.message?.content
+      if (typeof aiContent !== 'string' || !aiContent.trim()) {
+        throw new Error('AI 返回内容为空')
+      }
+
+      const aiMsg = { role: 'assistant', content: aiContent.trim() }
       setMessages(prev => [...prev, aiMsg])
 
       try {
         const db = await getDB()
         await db.run('INSERT INTO chat_messages (video_id, role, content) VALUES (?, ?, ?)',
-          [id, 'assistant', aiContent])
+          [id, 'assistant', aiContent.trim()])
       } catch (err) {
         console.error('Save AI msg failed:', err)
       }
 
-    } catch (err) {
-      const errMsg = { role: 'assistant', content: '网络错误，请重试。' }
+    } catch (err: any) {
+      const errMsg = { role: 'assistant', content: err?.message || '网络错误，请重试。' }
       setMessages(prev => [...prev, errMsg])
     } finally {
       setLoading(false)
