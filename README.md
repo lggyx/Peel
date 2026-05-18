@@ -398,6 +398,25 @@ npm run android        # 打开 Android Studio
 
 在 Android Studio 中点击 "Run" 安装 APK。
 
+### 9.4 验证命令
+
+每次提交稳定性相关改动前，至少运行：
+
+```bash
+cd reelmind-app
+npm run build
+
+cd ../reelmind-proxy
+npm test
+node --check index.js
+node --check config.js
+node --check analysis.js
+```
+
+Android 真机或模拟器验收参考：
+
+- [Android QA Checklist](docs/android-qa-checklist.md)
+
 ---
 
 ## 10. 安全与注意事项
