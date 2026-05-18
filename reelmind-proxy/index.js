@@ -6,6 +6,7 @@ const path = require('path');
 const {
   CORS_ORIGIN,
   DOWNLOAD_DIR,
+  MAX_DOWNLOAD_BYTES,
   PORT,
   PUBLIC_BASE_URL,
   STEPFUN_API_KEY,
@@ -56,6 +57,15 @@ function formatUrlForLog(raw) {
   } catch {
     return 'invalid-url';
   }
+}
+
+function isAllowedDownloadType(contentType) {
+  const normalized = (contentType || '').toLowerCase();
+  return (
+    normalized.startsWith('video/') ||
+    normalized.includes('application/octet-stream') ||
+    normalized.includes('binary/octet-stream')
+  );
 }
 
 const corsOptions = {
@@ -264,15 +274,31 @@ app.post('/download', async (req, res) => {
 
     const contentType = response.headers.get('content-type') || 'video/mp4';
     const contentLength = response.headers.get('content-length');
+    const contentLengthBytes = contentLength ? Number(contentLength) : 0;
+
+    if (!isAllowedDownloadType(contentType)) {
+      return res.status(415).json({ error: `Unsupported source content type: ${contentType}` });
+    }
+
+    if (contentLengthBytes > MAX_DOWNLOAD_BYTES) {
+      return res.status(413).json({ error: `Video exceeds max download size (${MAX_DOWNLOAD_BYTES} bytes)` });
+    }
 
     res.setHeader('Content-Type', contentType);
     if (contentLength) res.setHeader('Content-Length', contentLength);
 
     // 直接流式传输给客户端
     const reader = response.body.getReader();
+    let receivedBytes = 0;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      receivedBytes += value.byteLength;
+      if (receivedBytes > MAX_DOWNLOAD_BYTES) {
+        console.error(`[Download Error] Source exceeded max size while streaming: ${receivedBytes}`);
+        res.destroy(new Error('Video exceeds max download size'));
+        return;
+      }
       res.write(Buffer.from(value));
     }
     res.end();

@@ -370,6 +370,7 @@ peel/
 cd reelmind-proxy
 cp .env.example .env
 # 编辑 .env，填入 STEPFUN_API_KEY；如需真机访问，设置 PUBLIC_BASE_URL 为局域网或公网代理地址
+# MAX_DOWNLOAD_BYTES 默认 134217728，即 128MB
 npm install
 npm start
 ```

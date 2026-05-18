@@ -15,12 +15,14 @@ function stripTrailingSlash(value) {
 }
 
 const PORT = readNumberEnv('PORT', 3000);
+const MAX_DOWNLOAD_BYTES = readNumberEnv('MAX_DOWNLOAD_BYTES', 128 * 1024 * 1024);
 const DOWNLOAD_DIR = process.env.DOWNLOAD_DIR
   ? path.resolve(__dirname, process.env.DOWNLOAD_DIR)
   : path.join(__dirname, 'downloads');
 
 module.exports = {
   PORT,
+  MAX_DOWNLOAD_BYTES,
   DOWNLOAD_DIR,
   CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
   PUBLIC_BASE_URL: stripTrailingSlash(process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`),

@@ -18,6 +18,14 @@ function resolveVideoUrl(raw: string): string {
   return trimmed
 }
 
+function releaseVideoElement(video: HTMLVideoElement | null) {
+  if (!video) return
+  video.pause()
+  video.removeAttribute('src')
+  video.querySelector('source')?.removeAttribute('src')
+  video.load()
+}
+
 type TabKey = 'chat' | 'storyline'
 
 export default function Player() {
@@ -32,6 +40,7 @@ export default function Player() {
   const [showPanel, setShowPanel] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('chat')
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [videoError, setVideoError] = useState<string>('')
   const [videoReady, setVideoReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -87,9 +96,13 @@ export default function Player() {
         setAnalysis(parseAnalysis(v.analysis_json))
         const msgRes = await db.query('SELECT * FROM chat_messages WHERE video_id = ? ORDER BY created_at', [id])
         setMessages(msgRes.values || [])
+        setLoadError('')
+      } else {
+        setLoadError('视频不存在或已被删除')
       }
     } catch (err: any) {
       console.error('[Player] Load error:', err)
+      setLoadError('视频加载失败: ' + err.message)
     }
   }, [id])
 
@@ -98,14 +111,13 @@ export default function Player() {
     lockLandscape()
     hideStatusBar()
     return () => {
+      if (controlsTimerRef.current) {
+        clearTimeout(controlsTimerRef.current)
+        controlsTimerRef.current = null
+      }
       ScreenOrientation.unlock().catch(() => {})
       showStatusBar()
-      // 离开页面时彻底释放视频资源，防止返回时恢复全屏播放
-      if (videoRef.current) {
-        videoRef.current.pause()
-        videoRef.current.removeAttribute('src')
-        videoRef.current.load()
-      }
+      releaseVideoElement(videoRef.current)
     }
   }, [loadData])
 
@@ -130,6 +142,7 @@ export default function Player() {
     if (!video?.url || !videoRef.current) return
     setVideoError('')
     setVideoReady(false)
+    setShowControls(true)
     videoRef.current.load()
   }, [video?.url])
 
@@ -225,7 +238,19 @@ export default function Player() {
   if (!video) {
     return (
       <div className="bg-black h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        {loadError ? (
+          <div className="text-center px-6">
+            <p className="text-sm text-red-400">{loadError}</p>
+            <button
+              className="mt-4 px-4 py-2 rounded-lg bg-gray-800 text-sm text-white active:bg-gray-700"
+              onClick={() => navigate('/')}
+            >
+              返回视频库
+            </button>
+          </div>
+        ) : (
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        )}
       </div>
     )
   }

@@ -56,9 +56,14 @@ async function deleteDownloadedVideo(id: string) {
       path: `video_${id}.mp4`,
       directory: Directory.Data,
     })
+    console.log('[Download] Deleted local file:', id)
   } catch (err) {
     console.warn('[Download] Cleanup skipped:', err)
   }
+}
+
+function isDownloadedVideo(url: string): boolean {
+  return url.startsWith('file://')
 }
 
 interface Video {
@@ -168,11 +173,14 @@ export default function Library() {
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(video: Video) {
     try {
       const db = await getDB()
-      await db.run('DELETE FROM videos WHERE id = ?', [id])
-      await db.run('DELETE FROM chat_messages WHERE video_id = ?', [id])
+      await db.run('DELETE FROM videos WHERE id = ?', [video.id])
+      await db.run('DELETE FROM chat_messages WHERE video_id = ?', [video.id])
+      if (isDownloadedVideo(video.url)) {
+        await deleteDownloadedVideo(video.id)
+      }
       loadVideos()
     } catch (err: any) {
       alert('删除失败: ' + err.message)
@@ -240,7 +248,7 @@ export default function Library() {
                 </div>
                 <button
                   className="text-gray-500 p-2 active:text-red-500"
-                  onClick={e => { e.stopPropagation(); handleDelete(v.id) }}
+                  onClick={e => { e.stopPropagation(); handleDelete(v) }}
                 >
                   🗑️
                 </button>
