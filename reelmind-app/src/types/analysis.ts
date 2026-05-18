@@ -105,6 +105,60 @@ export function normalizeTheme(raw: Partial<ThemeVariables> | undefined): ThemeV
   }
 }
 
+function normalizeCharacters(raw: unknown): Character[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (item): item is Character =>
+      item &&
+      typeof item === 'object' &&
+      typeof (item as Character).name === 'string' &&
+      typeof (item as Character).description === 'string'
+  )
+}
+
+function normalizeTimeline(raw: unknown): TimelineEntry[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (item): item is TimelineEntry =>
+      item &&
+      typeof item === 'object' &&
+      typeof (item as TimelineEntry).time === 'string' &&
+      typeof (item as TimelineEntry).event === 'string'
+  )
+}
+
+function normalizeRelationships(raw: unknown): Relationship[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (item): item is Relationship =>
+      item &&
+      typeof item === 'object' &&
+      typeof (item as Relationship).from === 'string' &&
+      typeof (item as Relationship).to === 'string' &&
+      typeof (item as Relationship).relation === 'string'
+  )
+}
+
+function normalizeStoryline(raw: unknown): StorylineEntry[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (s): s is StorylineEntry =>
+        s &&
+        typeof s === 'object' &&
+        typeof (s as StorylineEntry).phase === 'string' &&
+        typeof (s as StorylineEntry).summary === 'string' &&
+        Array.isArray((s as StorylineEntry).highlights) &&
+        typeof (s as StorylineEntry).mood === 'string'
+    )
+    .map((s) => ({
+      phase: s.phase,
+      summary: s.summary,
+      highlights: s.highlights.filter((item): item is string => typeof item === 'string'),
+      mood: s.mood,
+    }))
+}
+
 /** 安全解析后端返回的 analysis JSON */
 export function parseAnalysis(raw: string | null | undefined): VideoAnalysis | null {
   if (!raw) return null
@@ -113,20 +167,11 @@ export function parseAnalysis(raw: string | null | undefined): VideoAnalysis | n
     if (!parsed || typeof parsed !== 'object') return null
 
     const analysis: VideoAnalysis = {
-      characters: Array.isArray(parsed.characters) ? parsed.characters : [],
+      characters: normalizeCharacters(parsed.characters),
       plotSummary: typeof parsed.plotSummary === 'string' ? parsed.plotSummary : '',
-      timeline: Array.isArray(parsed.timeline) ? parsed.timeline : [],
-      relationships: Array.isArray(parsed.relationships) ? parsed.relationships : [],
-      storyline: Array.isArray(parsed.storyline)
-        ? parsed.storyline.filter(
-            (s: any) =>
-              s &&
-              typeof s.phase === 'string' &&
-              typeof s.summary === 'string' &&
-              Array.isArray(s.highlights) &&
-              typeof s.mood === 'string'
-          )
-        : [],
+      timeline: normalizeTimeline(parsed.timeline),
+      relationships: normalizeRelationships(parsed.relationships),
+      storyline: normalizeStoryline(parsed.storyline),
       theme: normalizeTheme(parsed.theme),
     }
 

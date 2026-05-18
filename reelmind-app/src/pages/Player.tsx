@@ -28,6 +28,18 @@ function releaseVideoElement(video: HTMLVideoElement | null) {
 
 type TabKey = 'chat' | 'storyline'
 
+function hasUsableAnalysis(analysis: VideoAnalysis | null): analysis is VideoAnalysis {
+  return Boolean(
+    analysis &&
+    (
+      analysis.plotSummary.trim() ||
+      analysis.characters.length > 0 ||
+      analysis.storyline.length > 0 ||
+      analysis.timeline.length > 0
+    )
+  )
+}
+
 export default function Player() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -170,7 +182,7 @@ export default function Player() {
   }
 
   async function sendMessage() {
-    if (!input.trim() || !analysis || !id) return
+    if (!input.trim() || !id || !hasUsableAnalysis(analysis)) return
 
     const userContent = input.trim()
     setInput('')
@@ -433,11 +445,11 @@ export default function Player() {
 
             {/* 内容区 */}
             {activeTab === 'storyline' ? (
-              <StorylinePanel storyline={analysis?.storyline} />
+              <StorylinePanel storyline={analysis?.storyline} hasAnalysis={hasUsableAnalysis(analysis)} />
             ) : (
               <>
                 {/* 快速提问标签 */}
-                {analysis?.characters && analysis.characters.length > 0 && (
+                {hasUsableAnalysis(analysis) && analysis.characters.length > 0 && (
                   <div className="px-4 py-2 border-b"
                     style={{ borderColor: 'var(--theme-secondary, #1F2937)' }}>
                     <p className="text-xs mb-2" style={{ color: 'var(--theme-textMuted, #9CA3AF)' }}>
@@ -475,12 +487,11 @@ export default function Player() {
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                   {messages.length === 0 && (
                     <div className="text-center mt-8">
-                      <p className="text-3xl mb-2">🤖</p>
                       <p className="text-sm" style={{ color: 'var(--theme-text, #F3F4F6)' }}>
-                        问我关于视频的问题
+                        {hasUsableAnalysis(analysis) ? '问我关于视频的问题' : '暂无可用分析'}
                       </p>
                       <p className="text-xs mt-1" style={{ color: 'var(--theme-textMuted, #9CA3AF)' }}>
-                        例如：剧情是什么？谁是谁？
+                        {hasUsableAnalysis(analysis) ? '例如：剧情是什么？谁是谁？' : '该视频缺少剧情、角色和故事线信息'}
                       </p>
                     </div>
                   )}
@@ -540,7 +551,7 @@ export default function Player() {
                     className="px-4 rounded-xl text-sm font-medium active:opacity-80 disabled:opacity-40 transition-opacity"
                     style={{ backgroundColor: 'var(--theme-primary, #2563EB)', color: '#fff' }}
                     onClick={sendMessage}
-                    disabled={loading || !input.trim()}
+                    disabled={loading || !input.trim() || !hasUsableAnalysis(analysis)}
                   >
                     发送
                   </button>

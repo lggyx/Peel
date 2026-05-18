@@ -2,6 +2,7 @@ import type { StorylineEntry } from '../types/analysis'
 
 interface StorylinePanelProps {
   storyline?: StorylineEntry[]
+  hasAnalysis?: boolean
 }
 
 function MoodBadge({ mood }: { mood: string }) {
@@ -32,16 +33,15 @@ function HighlightTag({ text }: { text: string }) {
   )
 }
 
-export default function StorylinePanel({ storyline }: StorylinePanelProps) {
+export default function StorylinePanel({ storyline, hasAnalysis = true }: StorylinePanelProps) {
   if (!storyline || storyline.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-        <p className="text-3xl mb-2">📖</p>
         <p className="text-sm" style={{ color: 'var(--theme-textMuted, #9CA3AF)' }}>
-          暂无故事线数据
+          {hasAnalysis ? '暂无故事线数据' : '暂无分析数据'}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--theme-textMuted, #6B7280)' }}>
-          该视频为旧数据，未生成故事发展线
+          {hasAnalysis ? '该视频未生成故事发展线' : '请返回视频库重新分析该视频'}
         </p>
       </div>
     )
