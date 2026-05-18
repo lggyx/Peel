@@ -17,18 +17,51 @@ export function apiUrl(path: string): string {
   return `${API_BASE_URL}${normalizedPath}`
 }
 
-export function isHttpUrl(value: string): boolean {
+function hasProtocol(value: string): boolean {
+  return /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value)
+}
+
+export function normalizeHttpUrl(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const candidate = hasProtocol(trimmed) ? trimmed : `https://${trimmed}`
   try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:'
+    const url = new URL(candidate)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    return url.toString()
   } catch {
-    return false
+    return null
   }
+}
+
+export function isHttpUrl(value: string): boolean {
+  return normalizeHttpUrl(value) !== null
+}
+
+function extractErrorText(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  if (!value || typeof value !== 'object') return null
+
+  const record = value as Record<string, unknown>
+  return (
+    extractErrorText(record.message) ||
+    extractErrorText(record.error) ||
+    extractErrorText(record.detail) ||
+    extractErrorText(record.details)
+  )
 }
 
 export async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   const data = await response.json().catch(() => null)
-  if (data && typeof data.error === 'string') return data.error
-  if (data && typeof data.message === 'string') return data.message
+  if (!data || typeof data !== 'object') return fallback
+
+  const record = data as Record<string, unknown>
+  const primary = extractErrorText(record.error) || extractErrorText(record.message)
+  const detail = extractErrorText(record.details)
+
+  if (primary && detail && primary !== detail) return `${primary}: ${detail}`
+  if (primary) return primary
+  if (detail) return detail
   return fallback
 }

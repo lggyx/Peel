@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { getDB, initDB } from '../db/init'
 import { generateUUID } from '../utils/uuid'
-import { API_HEADERS, apiUrl, isHttpUrl, readErrorMessage } from '../config/api'
+import { API_HEADERS, apiUrl, normalizeHttpUrl, readErrorMessage } from '../config/api'
 
 /** 请求后端下载视频，保存到本地文件系统，返回本地 file:// 路径 */
 async function downloadVideoViaProxy(url: string, id: string): Promise<string | null> {
@@ -105,8 +105,8 @@ export default function Library() {
     if (!urlInput.trim() || analyzing) return
 
     setAnalyzing(true)
-    const sourceUrl = urlInput.trim()
-    if (!isHttpUrl(sourceUrl)) {
+    const sourceUrl = normalizeHttpUrl(urlInput)
+    if (!sourceUrl) {
       alert('请输入有效的 http 或 https 视频 URL')
       setAnalyzing(false)
       return
