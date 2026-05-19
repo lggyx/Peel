@@ -6,6 +6,8 @@ The MeDo web app needs a public HTTPS backend URL. Local addresses are not suita
 
 Start with Render or Railway because `reelmind-proxy` is a standard Node/Express service.
 
+This repository now includes a root-level `render.yaml` Blueprint for Render. If you use Render Blueprints, Render can read the service configuration from that file and prompt you for the secret `STEPFUN_API_KEY`.
+
 ## Repository Settings
 
 Use the existing GitHub repository and branch:
@@ -97,4 +99,3 @@ After deployment succeeds, replace every `<PUBLIC_PROXY_BASE_URL>` in:
 - Local URL used in MeDo: judges cannot access backend.
 - HTTP-only backend URL: browser security may block calls from HTTPS MeDo app.
 - Long cold start: first analyze request may take longer on free hosting tiers.
-

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: peel-proxy
+    runtime: node
+    rootDir: reelmind-proxy
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: STEPFUN_API_KEY
+        sync: false
+      - key: STEPFUN_MODEL
+        value: step-3.6
+      - key: STEPFUN_URL
+        value: https://api.stepfun.com/v1/chat/completions
+      - key: CORS_ORIGIN
+        value: '*'
+      - key: MAX_DOWNLOAD_BYTES
+        value: '134217728'
