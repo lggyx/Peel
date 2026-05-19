@@ -1,4 +1,5 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:3000'
+const ANDROID_EMULATOR_API_BASE_URL = 'http://10.0.2.2:3000'
 
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
@@ -8,6 +9,14 @@ export const API_BASE_URL = stripTrailingSlash(
   import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 )
 
+const API_FALLBACK_BASE_URLS = [
+  import.meta.env.VITE_API_FALLBACK_BASE_URL,
+  ANDROID_EMULATOR_API_BASE_URL,
+]
+  .filter((value): value is string => Boolean(value))
+  .map(stripTrailingSlash)
+  .filter((value, index, values) => value !== API_BASE_URL && values.indexOf(value) === index)
+
 export const API_HEADERS = {
   'ngrok-skip-browser-warning': '1',
 }
@@ -15,6 +24,27 @@ export const API_HEADERS = {
 export function apiUrl(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${API_BASE_URL}${normalizedPath}`
+}
+
+function apiUrlForBase(baseUrl: string, path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${baseUrl}${normalizedPath}`
+}
+
+export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const candidates = [API_BASE_URL, ...API_FALLBACK_BASE_URLS]
+  let lastError: unknown = null
+
+  for (const baseUrl of candidates) {
+    try {
+      return await fetch(apiUrlForBase(baseUrl, path), init)
+    } catch (err) {
+      lastError = err
+      console.warn(`[API] Request failed for ${baseUrl}, trying next candidate`, err)
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Network request failed')
 }
 
 function hasProtocol(value: string): boolean {
@@ -74,7 +104,8 @@ export function formatRequestError(err: unknown): string {
       : '网络错误，请重试。'
 
   if (/failed to fetch|networkerror|load failed/i.test(message)) {
-    return `无法连接后端 ${API_BASE_URL}。请确认 reelmind-proxy 已启动，并且模拟器/手机能访问这台电脑。`
+    const candidates = [API_BASE_URL, ...API_FALLBACK_BASE_URLS].join(' 或 ')
+    return `无法连接后端 ${candidates}。请确认 reelmind-proxy 已启动，并且模拟器/手机能访问这台电脑。`
   }
 
   return message

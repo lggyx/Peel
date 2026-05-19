@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { getDB, initDB } from '../db/init'
 import { generateUUID } from '../utils/uuid'
-import { API_HEADERS, apiUrl, formatRequestError, normalizeHttpUrl, readErrorMessage } from '../config/api'
+import { API_HEADERS, apiFetch, formatRequestError, normalizeHttpUrl, readErrorMessage } from '../config/api'
 
 /** 请求后端下载视频，保存到本地文件系统，返回本地 file:// 路径 */
 async function downloadVideoViaProxy(url: string, id: string): Promise<string | null> {
-  const res = await fetch(apiUrl('/download'), {
+  const res = await apiFetch('/download', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ export default function Library() {
 
     try {
       // 并发执行：AI 分析 + 视频下载到本地文件系统
-      const analyzePromise = fetch(apiUrl('/analyze'), {
+      const analyzePromise = apiFetch('/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

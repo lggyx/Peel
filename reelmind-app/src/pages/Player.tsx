@@ -7,7 +7,7 @@ import { getDB } from '../db/init'
 import { parseAnalysis, type VideoAnalysis } from '../types/analysis'
 import { useVideoTheme } from '../hooks/useVideoTheme'
 import StorylinePanel from '../components/StorylinePanel'
-import { API_HEADERS, apiUrl, formatRequestError, readErrorMessage } from '../config/api'
+import { API_HEADERS, apiFetch, formatRequestError, readErrorMessage } from '../config/api'
 
 function resolveVideoUrl(raw: string): string {
   if (!raw) return ''
@@ -202,7 +202,7 @@ export default function Player() {
     try {
       const context = buildContext()
 
-      const res = await fetch(apiUrl('/chat'), {
+      const res = await apiFetch('/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
