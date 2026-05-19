@@ -17,17 +17,8 @@ Do not ask MeDo to rebuild the existing Android app from source. Use MeDo to cre
 
 ## Public Demo Dependency
 
-Before the MeDo app can be fully functional for judges, `reelmind-proxy` must be deployed to a public HTTPS URL.
-
-Use this placeholder in MeDo until deployment is ready:
+The `reelmind-proxy` service is deployed to Render at:
 
 ```text
-<PUBLIC_PROXY_BASE_URL>
+https://peel-proxy.onrender.com
 ```
-
-Replace it with the deployed backend URL, for example:
-
-```text
-https://peel-proxy.example.com
-```
-

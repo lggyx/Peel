@@ -1,6 +1,6 @@
 # MeDo Build Prompt
 
-Copy this prompt into MeDo after replacing `<PUBLIC_PROXY_BASE_URL>` with the deployed backend URL.
+Copy this prompt into MeDo. The backend URL has already been set to the deployed Render service.
 
 ```text
 Create a polished public web app called Peel.
@@ -10,7 +10,7 @@ Peel is an AI video understanding assistant. Users paste a public MP4 video URL,
 This is a MeDo hackathon submission app. The app must feel like a real public demo that judges can use without local setup.
 
 Backend API base URL:
-<PUBLIC_PROXY_BASE_URL>
+https://peel-proxy.onrender.com
 
 Stable demo video URL:
 https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4
@@ -121,10 +121,9 @@ Important constraints:
 - Do not expose any API keys in frontend code.
 - Do not require users to install anything.
 - Do not use local URLs such as localhost, 172.31.24.201, or 10.0.2.2.
-- Use <PUBLIC_PROXY_BASE_URL> for all backend calls.
+- Use https://peel-proxy.onrender.com for all backend calls.
 - Add readable failure messages if the API fails.
 
 Submission narrative to include:
 Peel existed as an Android prototype before the hackathon. During the hackathon, it was significantly upgraded and MeDo was used to build the public web demo and API-driven judging experience. The result is a shareable product demo where judges can analyze a video and ask follow-up questions without local setup.
 ```
-

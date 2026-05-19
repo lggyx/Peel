@@ -86,7 +86,7 @@ Chat completion JSON with choices[0].message.content
 
 ## MeDo Update
 
-After deployment succeeds, replace every `<PUBLIC_PROXY_BASE_URL>` in:
+After deployment succeeds, make sure the deployed backend URL is reflected in:
 
 - `api-spec.md`
 - `medo-build-prompt.md`

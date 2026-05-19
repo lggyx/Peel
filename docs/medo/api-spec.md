@@ -2,16 +2,10 @@
 
 ## Base URL
 
-Replace this placeholder with the deployed HTTPS backend URL:
+Use the deployed Render backend URL:
 
 ```text
-<PUBLIC_PROXY_BASE_URL>
-```
-
-Example:
-
-```text
-https://peel-proxy.example.com
+https://peel-proxy.onrender.com
 ```
 
 Do not use local development URLs in the MeDo app:
@@ -47,7 +41,7 @@ GET /health
 ### Example
 
 ```bash
-curl <PUBLIC_PROXY_BASE_URL>/health
+curl https://peel-proxy.onrender.com/health
 ```
 
 ### Success Response
@@ -255,4 +249,3 @@ Body:
 ```text
 https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4
 ```
-
