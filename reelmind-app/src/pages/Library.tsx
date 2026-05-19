@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { getDB, initDB } from '../db/init'
 import { generateUUID } from '../utils/uuid'
-import { API_HEADERS, apiUrl, normalizeHttpUrl, readErrorMessage } from '../config/api'
+import { API_HEADERS, apiUrl, formatRequestError, normalizeHttpUrl, readErrorMessage } from '../config/api'
 
 /** 请求后端下载视频，保存到本地文件系统，返回本地 file:// 路径 */
 async function downloadVideoViaProxy(url: string, id: string): Promise<string | null> {
@@ -167,7 +167,7 @@ export default function Library() {
       if (downloadedUrl) {
         await deleteDownloadedVideo(id)
       }
-      alert('分析失败: ' + err.message)
+      alert('分析失败: ' + formatRequestError(err))
     } finally {
       setAnalyzing(false)
     }

@@ -7,7 +7,7 @@ import { getDB } from '../db/init'
 import { parseAnalysis, type VideoAnalysis } from '../types/analysis'
 import { useVideoTheme } from '../hooks/useVideoTheme'
 import StorylinePanel from '../components/StorylinePanel'
-import { API_HEADERS, apiUrl, readErrorMessage } from '../config/api'
+import { API_HEADERS, apiUrl, formatRequestError, readErrorMessage } from '../config/api'
 
 function resolveVideoUrl(raw: string): string {
   if (!raw) return ''
@@ -240,7 +240,7 @@ export default function Player() {
       }
 
     } catch (err: any) {
-      const errMsg = { role: 'assistant', content: err?.message || '网络错误，请重试。' }
+      const errMsg = { role: 'assistant', content: formatRequestError(err) }
       setMessages(prev => [...prev, errMsg])
     } finally {
       setLoading(false)

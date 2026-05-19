@@ -65,3 +65,17 @@ export async function readErrorMessage(response: Response, fallback: string): Pr
   if (detail) return detail
   return fallback
 }
+
+export function formatRequestError(err: unknown): string {
+  const message = err instanceof Error
+    ? err.message
+    : typeof err === 'string'
+      ? err
+      : '网络错误，请重试。'
+
+  if (/failed to fetch|networkerror|load failed/i.test(message)) {
+    return `无法连接后端 ${API_BASE_URL}。请确认 reelmind-proxy 已启动，并且模拟器/手机能访问这台电脑。`
+  }
+
+  return message
+}
