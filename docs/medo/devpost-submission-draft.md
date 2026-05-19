@@ -26,7 +26,7 @@ Peel lets users paste a public MP4 URL and receive an AI-generated interpretatio
 
 The original Peel prototype was a React, TypeScript, Capacitor Android app with an Express proxy backend. During the hackathon update, we stabilized the video analysis and chat flow, added Android network resilience, clarified failure states, and prepared a public MeDo web app experience.
 
-The MeDo app serves as the public browser-based demo. It calls the deployed Peel backend API for video analysis and Q&A. The backend protects the StepFun API key and normalizes AI responses into a clean JSON shape for the frontend.
+The MeDo app serves as the public browser-based demo at https://app-bqt8i7t9s0sh.appmedo.com. It calls the deployed Peel backend API at https://peel-proxy.onrender.com for video analysis and Q&A. The backend protects the StepFun API key and normalizes AI responses into a clean JSON shape for the frontend.
 
 ## How We Used MeDo
 
@@ -70,14 +70,18 @@ We learned that hackathon readiness is not just about features. It also requires
 
 ## What's Next
 
-- Deploy the backend to a public HTTPS service.
-- Generate and publish the MeDo web app.
+- Polish the public MeDo app metadata and submission-facing copy.
+- Record a short public demo video.
 - Add richer export formats such as study notes, share cards, and creator briefs.
 - Explore iOS packaging after the web demo is stable.
 
 ## Testing Instructions
 
-Open the public MeDo app URL.
+Open the public MeDo app URL:
+
+```text
+https://app-bqt8i7t9s0sh.appmedo.com
+```
 
 Use this demo video URL:
 
@@ -104,4 +108,3 @@ Target length: under 3 minutes.
 4. 1:30-2:10 - Ask AI follow-up questions.
 5. 2:10-2:40 - Explain MeDo's role and API integration.
 6. 2:40-3:00 - Close with use cases and next steps.
-
