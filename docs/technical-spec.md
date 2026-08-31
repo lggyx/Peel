@@ -400,7 +400,7 @@ npm run android        # 打开 Android Studio
 
 - **API Key 保护**：StepFun API Key 仅存储在代理后端的 `.env` 中，前端通过 `import.meta.env.VITE_API_KEY` 只在浏览器端使用，构建 APK 后前端环境变量不生效，必须配置代理后端
 - **视频路径安全**：禁止在 WebView 中直接使用 `file://` 路径，使用 Capacitor 本地服务器或 `convertFileSrc()`
-- **CORS 与防盗链**：外部 CDN 视频可能被防盗链拦截，推荐使用本地资源或可控的 CDN
+- **CORS 配置**：生产环境必须设置 `CORS_ORIGIN` 环境变量为实际前端域名，禁止使用通配符 `*`
 - **数据库清理**：修改演示数据后需卸载 App 或清除应用数据，让 SQLite 重新初始化
 
 ---

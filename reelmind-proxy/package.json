@@ -1,7 +1,7 @@
 {
-  "name": "reelmind-proxy",
+  "name": "peel-proxy",
   "version": "1.0.0",
-  "description": "ReelMind lightweight proxy for StepFun API",
+  "description": "Peel lightweight proxy for StepFun API",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",

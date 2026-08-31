@@ -1,0 +1,74 @@
+services:
+  peel-app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: peel-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - peel-downloads:/app/downloads
+      - peel-public:/app/public
+    environment:
+      - PORT=3000
+      - DOWNLOAD_DIR=/app/downloads
+      - MAX_DOWNLOAD_BYTES=${MAX_DOWNLOAD_BYTES:-134217728}
+      - STEPFUN_API_KEY=${STEPFUN_API_KEY}
+      - STEPFUN_MODEL=${STEPFUN_MODEL:-step-3.6}
+      - STEPFUN_URL=${STEPFUN_URL:-https://api.stepfun.com/v1/chat/completions}
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://peel.lggyx.com}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '1.0'
+    networks:
+      - peel-internal
+
+  peel-caddy:
+    image: caddy:2-alpine
+    container_name: peel-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - peel-public:/app/public:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - CADDY_DOMAIN=${CADDY_DOMAIN:-peel.lggyx.com}
+    depends_on:
+      peel-app:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.5'
+    networks:
+      - peel-internal
+
+volumes:
+  peel-downloads:
+    driver: local
+  peel-public:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local
+
+networks:
+  peel-internal:
+    driver: bridge

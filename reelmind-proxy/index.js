@@ -17,9 +17,15 @@ const { extractJSON, normalizeAnalysis } = require('./analysis');
 
 const app = express();
 
+// Serve built frontend static files
+app.use(express.static(path.join(__dirname, 'public')))
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
 if (!STEPFUN_API_KEY) {
-  console.error('Error: STEPFUN_API_KEY not set in .env');
-  process.exit(1);
+  console.error('Error: STEPFUN_API_KEY not set in .env')
+  process.exit(1)
 }
 
 // 确保下载目录存在
@@ -77,9 +83,9 @@ function formatErrorMessage(err) {
 }
 
 const corsOptions = {
-  origin: CORS_ORIGIN,
+  origin: CORS_ORIGIN ? CORS_ORIGIN.split(',').map(s => s.trim()) : [],
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: false,
 };
 
@@ -326,6 +332,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// SPA fallback: serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+});
+
 app.use((err, req, res, next) => {
   console.error('[Server Error]', err);
   res.status(500).json({ error: 'Internal server error' });
@@ -333,7 +344,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`=================================`);
-  console.log(`ReelMind Proxy running`);
+  console.log(`Peel Proxy running`);
   console.log(`Port: ${PORT}`);
   console.log(`Public Base URL: ${PUBLIC_BASE_URL}`);
   console.log(`Bind: 0.0.0.0 (all interfaces)`);

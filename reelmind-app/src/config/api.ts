@@ -17,9 +17,7 @@ const API_FALLBACK_BASE_URLS = [
   .map(stripTrailingSlash)
   .filter((value, index, values) => value !== API_BASE_URL && values.indexOf(value) === index)
 
-export const API_HEADERS = {
-  'ngrok-skip-browser-warning': '1',
-}
+export const API_HEADERS: Record<string, string> = {}
 
 export function apiUrl(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`

@@ -190,7 +190,7 @@ export default function Library() {
   return (
     <div className="h-screen bg-black text-white flex flex-col safe-top safe-bottom">
       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-        <h1 className="text-lg font-bold">ReelMind</h1>
+        <h1 className="text-lg font-bold">Peel</h1>
         <span className="text-xs text-gray-500">{videos.length} 个视频</span>
       </div>
 

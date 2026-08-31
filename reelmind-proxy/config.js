@@ -24,7 +24,7 @@ module.exports = {
   PORT,
   MAX_DOWNLOAD_BYTES,
   DOWNLOAD_DIR,
-  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
+  CORS_ORIGIN: process.env.CORS_ORIGIN || '',
   PUBLIC_BASE_URL: stripTrailingSlash(process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`),
   STEPFUN_API_KEY: process.env.STEPFUN_API_KEY,
   STEPFUN_MODEL: process.env.STEPFUN_MODEL || 'step-3.6',

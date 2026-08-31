@@ -8,7 +8,7 @@
 
 ## 1. 项目概述
 
-Peel（曾用名 ReelMind）是一款面向移动端（优先 Android）的智能视频分析应用。用户导入视频后，后端通过 AI（StepFun step-3.6）进行多维度结构化分析，生成角色、剧情、时间线、人物关系、故事发展线和视觉主题；前端基于分析结果提供 AI 问答和故事线浏览功能，且 AI 面板和故事线区域会根据视频内容动态变换配色主题。
+Peel 是一款面向移动端（优先 Android）的智能视频分析应用。用户导入视频后，后端通过 AI（StepFun step-3.6）进行多维度结构化分析，生成角色、剧情、时间线、人物关系、故事发展线和视觉主题；前端基于分析结果提供 AI 问答和故事线浏览功能，且 AI 面板和故事线区域会根据视频内容动态变换配色主题。
 
 **核心特性：**
 - AI 驱动的视频结构化分析（角色 / 剧情 / 时间线 / 关系 / 故事线 / 主题）
@@ -304,12 +304,8 @@ settings.setAllowUniversalAccessFromFileURLs(true);       // file:// → https:/
 
 ### 7.3 本地资源路径
 
-Capacitor `webDir: 'dist'` 运行时，`public/` 目录下的资源通过内置本地服务器映射：
-
-```
-public/videos/demo_video.mp4      →  https://localhost/videos/demo_video.mp4
-public/videos/chen_she_shi_jia.mp4 → https://localhost/videos/chen_she_shi_jia.mp4
-```
+演示视频通过 GitHub Release 分发，应用首次启动时自动下载并缓存到本地。
+具体地址见第 8 节「演示数据」。
 
 **禁止在 WebView 中使用 `file://` 路径**，必须通过 Capacitor 本地服务器或 `convertFileSrc()` 转换。
 
@@ -317,14 +313,18 @@ public/videos/chen_she_shi_jia.mp4 → https://localhost/videos/chen_she_shi_jia
 
 ## 8. 演示数据
 
-应用首次启动时自动插入两条演示视频（`seedDemoVideos()`）：
+应用首次启动时从 GitHub Release 自动下载两条演示视频并缓存到本地（`seedDemoVideos()`）：
 
-| 视频 | ID | 路径 | 主题风格 | 主色 |
-|------|-----|------|---------|------|
-| 乾隆盛世 | `demo-qianlong-shengshi` | `./videos/demo_video.mp4` | 宫廷奢华 | `#9E2A2B` 深红 + `#E6B800` 明金 |
-| 陈涉世家 | `demo-chen-she-shi-jia` | `./videos/chen_she_shi_jia.mp4` | 草莽冷峻 | `#1A5F7A` 海蓝 + `#4CC9F0` 冰蓝 |
+| 视频 | ID | 主题风格 | 主色 |
+|------|-----|---------|------|
+| 乾隆盛世 | `demo-qianlong-shengshi` | 宫廷奢华 | `#9E2A2B` 深红 + `#E6B800` 明金 |
+| 陈涉世家 | `demo-chen-she-shi-jia` | 草莽冷峻 | `#1A5F7A` 海蓝 + `#4CC9F0` 冰蓝 |
 
 两条主题色相完全相反（暖红 vs 冷蓝），对比度极高，便于演示时一眼区分 AI 动态换肤效果。
+
+**Release 资产地址：** `https://github.com/lggyx/Peel/releases/download/v1.0.0/demo-videos.zip`
+
+下载失败时自动降级为空白占位，不影响其他功能使用。
 
 ---
 
@@ -340,7 +340,6 @@ public/videos/chen_she_shi_jia.mp4 → https://localhost/videos/chen_she_shi_jia
 ```
 peel/
 ├── reelmind-app/           # 前端 + Capacitor 移动应用
-│   ├── public/videos/      # 演示视频资源（打包进 APK）
 │   ├── src/
 │   │   ├── pages/          # Library.tsx, Player.tsx
 │   │   ├── components/     # StorylinePanel.tsx
@@ -358,8 +357,10 @@ peel/
 │   ├── config.js           # 运行时配置
 │   ├── analysis.js         # AI JSON 提取与标准化
 │   └── package.json
-└── docs/                   # 技术文档
-    └── technical-spec.md   # 详细技术说明
+├── docs/                   # 技术文档
+│   ├── technical-spec.md   # 详细技术说明
+│   └── archive/            # 历史物料（TaskMaster 等）
+└── deploy/                 # 部署配置（Docker Compose + Caddy）
 ```
 
 ### 9.3 启动步骤
@@ -423,8 +424,27 @@ Android 真机或模拟器验收参考：
 
 - **API Key 保护**：StepFun API Key 仅存储在代理后端的 `.env` 中，前端只配置 `VITE_API_BASE_URL` 指向代理服务，不能把 StepFun Key 放进前端代码或 APK
 - **视频路径安全**：禁止在 WebView 中直接使用 `file://` 路径，使用 Capacitor 本地服务器或 `convertFileSrc()`
-- **CORS 与防盗链**：外部 CDN 视频可能被防盗链拦截，推荐使用本地资源或可控的 CDN
+- **CORS 配置**：生产环境必须设置 `CORS_ORIGIN` 环境变量为实际前端域名，禁止使用通配符 `*`
 - **数据库清理**：修改演示数据后需卸载 App 或清除应用数据，让 SQLite 重新初始化
+
+---
+
+## 11. 部署指南
+
+### Docker Compose 一键启动
+
+```bash
+cd deploy
+cp .env.server.example .env.server
+# 编辑 .env.server，填入 STEPFUN_API_KEY 与 CORS_ORIGIN
+docker compose up -d
+```
+
+服务说明：
+- `peel-proxy`：Express 代理，端口 3000
+- `peel-caddy`：Caddy 自动 HTTPS 反代，域名需提前解析到服务器
+
+详见 `deploy/` 目录。
 
 ---
 

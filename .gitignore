@@ -23,3 +23,22 @@ node_modules/
 
 # OS specific
 .DS_Store
+
+# AI tool binaries and wrappers
+.codex-bin/
+
+# Large binary assets (videos, models) — distributed via GitHub Releases
+reelmind-app/public/videos/*.mp4
+reelmind-proxy/downloads/
+
+# Build outputs
+dist/
+build/
+*.apk
+*.aab
+
+# Capacitor
+reelmind-app/android/.gradle/
+reelmind-app/android/app/build/
+reelmind-app/android/build/
+reelmind-app/ios/
