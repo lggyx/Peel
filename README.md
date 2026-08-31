@@ -363,55 +363,68 @@ peel/
 └── deploy/                 # 部署配置（Docker Compose + Caddy）
 ```
 
-### 9.3 启动步骤
+### 9.3 本地开发启动
 
-**1. 启动代理后端**
+**环境要求：** Node.js ≥ 22
+
+**1. 启动代理后端（终端 1）**
 
 ```bash
 cd reelmind-proxy
 cp .env.example .env
-# 编辑 .env，填入 STEPFUN_API_KEY；如需真机访问，设置 PUBLIC_BASE_URL 为局域网或公网代理地址
-# MAX_DOWNLOAD_BYTES 默认 134217728，即 128MB
+# 编辑 .env，填入 STEPFUN_API_KEY 与 CORS_ORIGIN
+# 本地开发示例：
+#   STEPFUN_API_KEY=sk-xxxx
+#   CORS_ORIGIN=http://localhost:5173
+# MAX_DOWNLOAD_BYTES 默认 134217728（128MB）
 npm install
 npm start
 ```
 
 后端监听 `0.0.0.0:3000`。
 
-**2. 浏览器测试**
+**2. 启动前端（终端 2）**
 
 ```bash
 cd reelmind-app
-cp .env.example .env
-# 编辑 .env，设置 VITE_API_BASE_URL，例如 http://localhost:3000 或 http://<电脑局域网IP>:3000
 npm install
 npm run dev
 ```
 
-**3. Android 构建**
+浏览器打开 `http://localhost:5173`。
+
+**3. 验证**
 
 ```bash
-cd reelmind-app
-npm run build          # Vite 打包到 dist/
-npx cap sync android   # 同步到 android/ 项目
-npm run android        # 打开 Android Studio
+# 终端 1 中应看到：
+#   Peel Proxy running
+#   Health:   GET  http://localhost:3000/health
+
+# 终端 2 中应看到：
+#   ➜  Local:   http://localhost:5173/
 ```
 
-在 Android Studio 中点击 "Run" 安装 APK。
+### 9.4 Docker 部署
 
-### 9.4 验证命令
+```bash
+cd deploy
+cp .env.server.example .env.server
+# 编辑 .env.server，填入 STEPFUN_API_KEY 与 CADDY_DOMAIN
+docker compose up -d
+```
+
+详见 `deploy/DEPLOY.md`。
+
+### 9.5 验证命令
 
 每次提交稳定性相关改动前，至少运行：
 
 ```bash
-cd reelmind-app
-npm run build
-
-cd ../reelmind-proxy
+cd reelmind-proxy
 npm test
-node --check index.js
-node --check config.js
-node --check analysis.js
+
+cd ../reelmind-app
+npm run build
 ```
 
 Android 真机或模拟器验收参考：
